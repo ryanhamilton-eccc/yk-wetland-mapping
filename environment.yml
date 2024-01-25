@@ -1,0 +1,10 @@
+name: C:\Users\rhamilton\code\yk-wetland-mapping\.conda
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - geemap
+  - geopandas
+  - python-dotenv
+prefix: C:\Users\rhamilton\code\yk-wetland-mapping\.conda
