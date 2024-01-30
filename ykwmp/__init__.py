@@ -1,4 +1,4 @@
 from pathlib import Path
 
 
-S1_DATASET = Path(__file__).parent / 'data' / 'geojson' / 's1_acs_2019.geojson'
+S1_DATASET = r'C:\Users\rhamilton\code\yk-wetland-mapping\data\geojson\s1_asc_2019.geojson'

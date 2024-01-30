@@ -17,7 +17,7 @@ class Sentinel2:
         BANDS (list): List of band names in the Sentinel-2 dataset.
     """
 
-    BANDS = ["B2", "B3", "B4", "B8", "B11", "B12"]
+    BANDS = ["B2", "B3", "B4", "B5", "B6", "B7", "B8", "B11", "B12"] # TODO update the band List to be all Non 60m bands
     
     def __init__(self, aoi, start, end):
         """
@@ -31,7 +31,7 @@ class Sentinel2:
         self.aoi = aoi
         self.start = start
         self.end = end
-        self.dataset = ee.ImageCollection("COPERNICUS/S2")
+        self.dataset = ee.ImageCollection("COPERNICUS/S2_HARMONIZED")
         
     def mask_clouds(self, image: ee.Image) -> ee.Image:
         """
@@ -71,8 +71,8 @@ class Sentinel2:
             ]
         )   
 
-        image = image.select(["B2", "B3", "B4", "B8", "B11", "B12"])
-        array_image = image.toArray()
+        tmp = image.select(["B2", "B3", "B4", "B8", "B11", "B12"])
+        array_image = tmp.toArray()
         array_image_2d = array_image.toArray(1)
 
         components = (
@@ -356,19 +356,34 @@ class Sentinel1:
         return self.dataset
 
 
-def get_s1_inputs(aoi: ee.Geometry) -> ee.Image:
+def s1_mosaics() -> ee.Image:
     from ykwmp import S1_DATASET
     """ The resulting dataframes need to have the same shape. or number of rows. """
-    target_orbits = [50, 108, 79]
-    # load the 2019 dataset
+    
+    def create_swath_img(gdf: gpd.GeoDataFrame):
+        mosaic = None
+        for date, group in gdf.groupby("date"):
+            if mosaic is None:
+                mosaic = ee.ImageCollection(group["system_id"].tolist()).mosaic()
+            else:
+                mosaic = mosaic.addBands(ee.ImageCollection(group["system_id"].tolist()).mosaic())
+
+        return mosaic.select("V.*")
+    
     gdf = gpd.read_file(S1_DATASET)
-    # the target orbits # are 50, 108, 79
-    swath_images: list[ee.Image] = []
-    for idxs, gdf in gdf.groupby(["relativeOrbitNumber_start", "date"]):
-        if idxs[0] in target_orbits:
-            swath_images.append(ee.ImageCollection(gdf["system_id"].tolist()).mosaic())
-    # We are only using images from SAT A
-    mosaic = ee.ImageCollection(swath_images).filterBounds(aoi).mosaic()
+    
+    gdf_50_A = gdf[(gdf["platform_number"] == "A") & (gdf["relativeOrbitNumber_start"] == 50)]
+    gdf_79_A = gdf[(gdf["platform_number"] == "A") & (gdf["relativeOrbitNumber_start"] == 79)]
+    gdf_108_A = gdf[(gdf["platform_number"] == "A") & (gdf["relativeOrbitNumber_start"] == 108)]
+    
+    # built the swath images
+    swath_50_A = create_swath_img(gdf_50_A)
+    swath_79_A = create_swath_img(gdf_79_A)
+    swath_108_A = create_swath_img(gdf_108_A)
+    
+    # mosaic the swath images
+    mosaic = ee.ImageCollection([swath_50_A, swath_79_A, swath_108_A]).mosaic()
+
     return mosaic
 
 
@@ -378,8 +393,6 @@ def get_s1_inputs(aoi: ee.Geometry) -> ee.Image:
 def cedm_processing(aoi: ee.Geometry) -> ee.Image:
     """ Process the CDEM data for a given area of interest (AOI). Adds elevation and slope bands."""
     dem = ee.ImageCollection("NRCan/CDEM").select('elevation').mosaic()
-    slope = ee.Terrain.slope(dem)
-    dem = dem.addBands(slope).clip(aoi)
     return dem
 
     
