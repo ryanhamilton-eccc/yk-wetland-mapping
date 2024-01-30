@@ -165,3 +165,5 @@ cython_debug/
 
 # all raster datasets
 data/rasters/*
+
+scratch/*
