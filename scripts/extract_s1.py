@@ -46,7 +46,7 @@ def main(args: list = None):
         print('Usage: python extract_s1.py <year>')
         return 1
     print(f'Extracting S1 data for {args[1]}')
-    aoi = ee.FeatureCollection("projects/yk-wetland-mapping/assets/dev/eco_region_176_dev").geometry().bounds()
+    aoi = ee.FeatureCollection("projects/yk-wetland-mapping/assets/yukon-bounds").geometry().bounds()
     col = None
     
     start_mm_dd = f'{args[1]}-06-20'

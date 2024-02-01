@@ -17,7 +17,7 @@ class Sentinel2:
         BANDS (list): List of band names in the Sentinel-2 dataset.
     """
 
-    BANDS = ["B2", "B3", "B4", "B5", "B6", "B7", "B8", "B11", "B12"] # TODO update the band List to be all Non 60m bands
+    BANDS = ["B2", "B3", "B4", "B5", "B6", "B7", "B8", "B11", "B12"]
     
     def __init__(self, aoi, start, end):
         """
@@ -242,6 +242,7 @@ class Sentinel2TimeSeries:
         
         dataset = self.dataset.process().get_dataset().select("NDVI")
         
+        dataset = dataset.map(lambda image: image.addBands(ee.Image(1)))
         INDPENDENT.append('constant')
     
         # add the time
