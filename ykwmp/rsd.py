@@ -385,7 +385,7 @@ def s1_mosaics() -> ee.Image:
     # mosaic the swath images
     mosaic = ee.ImageCollection([swath_50_A, swath_79_A, swath_108_A]).mosaic()
 
-    return mosaic
+    return mosaic.convolve(ee.Kernel.square(1))
 
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~##

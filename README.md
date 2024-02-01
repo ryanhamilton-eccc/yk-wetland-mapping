@@ -66,10 +66,32 @@ To launch the application, run the following command:
 - The tiles were converted to cog using the `gdal_translate` command. a helper script was used to automate the process.
 - The cog files were then uploaded to a google cloud storage bucket for the project.
 ### Notes
-- CDEM collection nativly available in GEE because it does not play well when trying to create additional bands.
+- CDEM collection nativly available in GEE was not used because it does not play well when trying to create additional bands.
 ### Fourier Transform
 #### Processing Steps
 - Fourier Transform was applied to NDVI from the Sentinel-2 collection.
 - 3 modes were computed Phase 1 and Phase 2 where retained.
 ### Notes
 - Fourier Transform was computed using the CDEM grid as the bounding geometry. This was done to ensure that the Fourier Transform was computed on the same grid as the other datasets.
+- Fourier Transform was downloaded from cloud storage and mosaiced using QGIS Gdal raster tool merge.
+- It was then re-uploaded to cloud storage to be read directly into GEE.
+### Data Engineering
+#### Processing Steps
+- trainingPorints and validationPoints were merged into a single file
+- a column was added to the file to indicate wither the row was a training or validation point
+- the class_name column was converted to a numeric value
+- the file was coverted to a wgs84 projection (EPSG:4326)
+- the file was then zipped and uploaded to google earth engine as an table asset.
+### Modeling
+#### Processing Steps
+- The model was created using the [ee.Classifier.smileRandomForest](https://developers.google.com/earth-engine/apidocs/ee-classifier-smilerandomforest) method.
+- trained using the extracted features from the remote sensing datasets. where the split column was set to train.
+- Paramaters:
+    - numberOfTrees: 1000
+    - variablesPerSplit: null
+    - minLeafPopulation: 1
+    - bagFraction: 0.5
+    - maxNodes: null
+    - seed: 0
+
+ 
