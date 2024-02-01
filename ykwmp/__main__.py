@@ -8,9 +8,9 @@ import ee
 
 from . import helpers
 
-DEBUG = True # if set to True, the working directory will be changed to the directory of this file
+DEBUG = False # if set to True, the working directory will be changed to the directory of this file
 
-print('DEBUG_MODE:', DEBUG)
+# print('DEBUG_MODE:', DEBUG)
 
 def main(args: list[str]) -> int:
     """

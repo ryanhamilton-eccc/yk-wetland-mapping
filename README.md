@@ -22,5 +22,5 @@ Yukon Wetland Mapping
 To launch the application, run the following command:
 
 ```bash
-(ykwmp) $ ykwmp <feature_asset_id> <region_asset_id>
+(ykwmp) $ python -m ykwmp <feature_asset_id> <region_asset_id>
 ```
