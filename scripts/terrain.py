@@ -61,14 +61,14 @@ def main() -> int:
         pm_struct = terrain_tools.PeronaMalik(
             dataset=dem,
             geom=geom,
-            elevation_band="B0"
+            elevation_band=0
         )
         pm_product = terrain_tools.compute_terrain_products(pm_struct)
         
         ga_struct = terrain_tools.Gaussian(
             dataset=dem,
             geom=geom,
-            elevation_band="B0"
+            elevation_band=0
         )
         
         ga_product = terrain_tools.compute_terrain_products(ga_struct)
