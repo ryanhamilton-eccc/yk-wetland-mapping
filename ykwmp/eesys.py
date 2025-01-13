@@ -1,4 +1,6 @@
 import ee
+import time
+
 
 def asset_exists(asset_id: str) -> bool:
     """
@@ -63,3 +65,81 @@ def delete_asset(asset_id: str):
         print(f"Asset {asset_id} deleted successfully.")
     except ee.ee_exception.EEException as e:
         print(f"Failed to delete asset {asset_id}: {e}")
+
+
+# -- Tasks
+def export_classification_result(classified_image: ee.Image, task_name: str, region: ee.Geometry, scale: int = 30):
+    export_task = ee.batch.Export.image.toDrive(
+        image=classified_image,
+        description=task_name,
+        scale=scale,
+        region=region,
+        fileFormat='GeoTIFF'
+    )
+    export_task.start()
+    return export_task
+
+def export_error_matrix(error_matrix: ee.ConfusionMatrix, task_name: str):
+    # Convert the confusion matrix to a FeatureCollection or other format as needed
+    cm_fc = ee.FeatureCollection([ee.Feature(None, {
+        'confusion_matrix': error_matrix.getInfo()  # Or process accordingly
+    })])
+    
+    export_task = ee.batch.Export.table.toDrive(
+        collection=cm_fc,
+        description=task_name,
+        fileFormat='CSV',
+        folder='error_matrix_exports'
+    )
+    export_task.start()
+    return export_task
+
+def export_model(model: ee.Classifier, task_name: str):
+    model_dict = {
+        'model': model.getInfo()  # Serialize the model as needed
+    }
+    
+    model_fc = ee.FeatureCollection([ee.Feature(None, model_dict)])
+    
+    export_task = ee.batch.Export.table.toDrive(
+        collection=model_fc,
+        description=task_name,
+        fileFormat='CSV',
+        folder='model_exports'
+    )
+    export_task.start()
+    return export_task
+
+def export_features(features: ee.FeatureCollection, task_name: str):
+    export_task = ee.batch.Export.table.toDrive(
+        collection=features,
+        description=task_name,
+        fileFormat='CSV',
+        folder='features_exports'
+    )
+    export_task.start()
+    return export_task
+
+
+# -- Monitor Tasks
+def monitor_task(task: ee.batch.Task, check_interval: int = 10):
+    """
+    Monitors the Earth Engine task until it is completed or fails.
+    Prints the status periodically.
+    
+    Parameters:
+        task: ee.batch.Task - The task to monitor
+        check_interval: int - Time (in seconds) between status checks
+    
+    Returns:
+        None
+    """
+    while task.active():
+        print(f"Task status: {task.status()['state']}")
+        time.sleep(check_interval)  # Wait for the next check
+    
+    print(f"Final task status: {task.status()['state']}")
+    if task.status()['state'] == 'COMPLETED':
+        print("Task completed successfully!")
+    else:
+        print(f"Task failed with error: {task.status().get('error_message', 'No error message available')}")
