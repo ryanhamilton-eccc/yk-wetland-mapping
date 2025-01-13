@@ -3,9 +3,8 @@ import ee
 
 
 # -- internal imports
-from datasets import image_collection_factory
-from masks import s2_cloud_mask
-from image_utils import compute_ndvi, compute_tasseled_cap
+from ykwmp.datasets import dataset_factory
+from ykwmp.image_utils import s2_cloud_mask, compute_ndvi, compute_tasseled_cap
 
 
 def get_s1_images(
@@ -16,11 +15,12 @@ def get_s1_images(
     platform_number: str | None = "A",
 ) -> ee.Image | ee.ImageCollection:
      
-    dataset = image_collection_factory('s1', aoi, date)
+    dataset = dataset_factory('s1', aoi, date)
     dataset = (
         dataset
         .filter(ee.Filter.eq("instrumentMode", "IW"))
-        .filter(ee.Filter.inList("transmitterReceiverPolarisation", ["VV", 'VH']))
+        .filter(ee.Filter.listContains("transmitterReceiverPolarisation", "VV"))
+        .filter(ee.Filter.listContains("transmitterReceiverPolarisation", "VH"))
     )
 
     if look_direction is not None:
@@ -36,15 +36,9 @@ def get_s1_images(
 
 
 def process_s1_images(aoi, dates) -> ee.Image:
-    swath_50_A = get_s1_images(aoi, dates, relative_orbit_number=50)
-    swath_79_A = get_s1_images(aoi, dates, relative_orbit_number=79)
-    swath_108_A = get_s1_images(aoi, dates, relative_orbit_number=108)
-    combined = swath_50_A.merge(swath_79_A).merge(swath_108_A)
-    combined = combined.median()
-    return combined.convolve(ee.Kernel.square(1))
+    return get_s1_images(aoi, dates).median().convolve(ee.Kernel.square(1)).select('V.*|H.*')
 
     
-
 # -- S2 Data Collection and pre processing
 def get_s2_images(
     aoi: ee.Geometry, 
@@ -52,7 +46,7 @@ def get_s2_images(
     cloudy_pixel: Optional[float] = 20.0, 
     cloud_mask: bool = True, 
 ) -> ee.ImageCollection:
-    dataset = image_collection_factory('s2', aoi, date)
+    dataset = dataset_factory('s2', aoi, date)
 
     if cloudy_pixel >= 0:
         dataset = dataset.filter(ee.Filter.lte("CLOUDY_PIXEL_PERCENTAGE", cloudy_pixel))
@@ -92,4 +86,4 @@ def process_s2_images(
     if add_tasseled_cap:
         pass
 
-    return dataset
+    return dataset.median().select("B[2-9]|B8A|B[0-1][0-2]")
