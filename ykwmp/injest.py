@@ -1,12 +1,12 @@
 from pathlib import Path
-from typing import Union
+from typing import Optional, Union
 import geopandas as gpd
 import ee
 import pandas as pd
 
 
 # -- internal libs
-from eesys import monitor_task 
+from ykwmp.eesys import monitor_task 
 
 
 def shapefile_to_feature_collection(shapefile_path: Union[str, Path]):
@@ -70,8 +70,8 @@ def merge_shapefiles_to_feature_collection(
 
 def ingest_shapefile_to_asset(
     shapefile_path: Union[str, Path],
-    validation_shapefile_path: Union[str, Path],
     asset_id: str,
+    validation_shapefile_path: Optional[Union[str, Path]] = None,
     asset_type: str = 'shapefile',
     merge: bool = False
 ) -> None:
