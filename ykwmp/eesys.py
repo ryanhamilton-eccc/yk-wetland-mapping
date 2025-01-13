@@ -19,6 +19,25 @@ def asset_exists(asset_id: str) -> bool:
         return False
 
 
+def create_asset_folder(folder_id: str):
+    """
+    Create a folder in the Earth Engine file system.
+    
+    Parameters:
+    - folder_id: The asset ID of the folder you want to create (e.g., 'users/your_username/my_folder/').
+    
+    Returns:
+    - None
+    """
+    try:
+        # Create the folder in Earth Engine by using createAssetHome
+        ee.data.createAssetHome(folder_id)
+        print(f"Folder {folder_id} created successfully.")
+        
+    except Exception as e:
+        print(f"Error creating folder: {e}")
+
+
 def export_if_not_exists(collection: ee.FeatureCollection, asset_id: str, description: str = "export_task"):
     """
     Export a FeatureCollection to an asset if it doesn't already exist.
