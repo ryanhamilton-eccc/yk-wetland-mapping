@@ -29,10 +29,11 @@ def edge_mask(image) -> ee.Image:
 
 
 # -- Feature Extraction
-def extract(image, collection) -> ee.FeatureCollection:
+def extract(image: ee.Image, collection: ee.FeatureCollection) -> ee.FeatureCollection:
     return image.sampleRegions(
         collection=collection,
         scale=10,
-        tileScale=16
+        tileScale=16,
+        geometries=True
     )
 
