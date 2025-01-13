@@ -5,6 +5,6 @@ channels:
 dependencies:
   - python=3.11
   - geemap
+  - earthengine-api
   - geopandas
-  - python-dotenv
 prefix: C:\Users\rhamilton\code\yk-wetland-mapping\.conda

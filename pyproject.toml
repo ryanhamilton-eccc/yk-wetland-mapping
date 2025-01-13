@@ -1,0 +1,11 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ykwmp"
+version = "0.2.0"
+authors = [{name = 'Ryan Hamilton', email = 'ryan.hamilton@ec.gc.ca'}]
+
+[tool.setuptools]
+packages =  {find = {include = ['ykwmp'], exclude = ["data", "Examples", "code", "scratch", "explore", "tests"] }}
