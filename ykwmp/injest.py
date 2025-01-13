@@ -27,6 +27,8 @@ def shapefile_to_feature_collection(shapefile_path: Union[str, Path]):
 def merge_shapefiles_to_feature_collection(
     train_shapefile_path: Union[str, Path],
     validation_shapefile_path: Union[str, Path],
+    label_column: str = "class_name",
+    value_column: str = "class_value",
     id_column: str = "is_training"
 ) -> ee.FeatureCollection:
     """
@@ -57,11 +59,23 @@ def merge_shapefiles_to_feature_collection(
     id_column = 'is_training'
     gdf_train[id_column] = 1
     gdf_test[id_column] = 2
+
+    # export columns [label_column, id_column, geometry]
+    # do some column standardization for the labels
+    # sort them then map a int value
     
     # merge tables into a single dataframe
     gdf = gpd.GeoDataFrame(pd.concat([gdf_train, gdf_test], ignore_index=True))
+    
+    # check to see if label column is in the df
+    if label_column not in gdf.columns:
+        raise ValueError(f"{label_column} not in the current table")
 
-
+    if value_column not in gdf.columns or gdf[value_column].isnull().all():
+        unique_labels = sorted(gdf[label_column].unique())
+        label_to_value_map = {label: index for index, label in enumerate(unique_labels, start=1)}
+        gdf[value_column] = gdf[label_column].map(label_to_value_map)
+    
     # Convert the GeoDataFrame to a FeatureCollection
     feature_collection = ee.FeatureCollection(gdf.__geo_interface__)
     
