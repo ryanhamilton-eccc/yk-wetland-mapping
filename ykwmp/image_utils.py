@@ -1,4 +1,4 @@
-from typing import Callable, Tuple
+from typing import Callable, List, Tuple
 import ee
 
 # -- Stacking
@@ -29,11 +29,12 @@ def edge_mask(image) -> ee.Image:
 
 
 # -- Feature Extraction
-def extract(image: ee.Image, collection: ee.FeatureCollection) -> ee.FeatureCollection:
+def extract(image: ee.Image, collection: ee.FeatureCollection, properties: List[str] = None) -> ee.FeatureCollection:
     return image.sampleRegions(
         collection=collection,
         scale=10,
         tileScale=16,
-        geometries=True
+        geometries=True,
+        properties=properties
     )
 
