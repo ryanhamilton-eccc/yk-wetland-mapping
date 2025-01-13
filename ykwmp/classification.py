@@ -3,13 +3,41 @@ from typing import Any, List, Union
 import ee
 
 
+# -- Random Forest
+@dataclass(frozen=True)
+class RandomForestHyperparameters:
+    number_of_trees: int = 1000
+
+
+@dataclass(frozen=True)
+class FeatureInputs:
+    features: ee.FeatureCollection
+    class_property: str
+    input_properties: Union[List[str], ee.List]
+
+
 def randomforest(
-    features: ee.FeatureCollection,
-    class_property: str, 
-    input_properties: Union[List[str], ee.List], 
-    number_of_trees: int = 1000,
+    feature_inputs: FeatureInputs,
+    hyperparameters: RandomForestHyperparameters,
 ) -> ee.Classifier:
-    rf_model = ee.Classifier.smileRandomForest(number_of_trees).train(features, class_property, input_properties)
+    """
+    Trains a Random Forest model using Earth Engine's smileRandomForest classifier.
+
+    Parameters:
+    - feature_inputs: FeatureInputs object containing training features, target property, and predictors.
+    - hyperparameters: RandomForestHyperparameters object containing model configuration.
+
+    Returns:
+    - ee.Classifier: A trained Random Forest classifier.
+    """
+    rf_model = (
+        ee.Classifier.smileRandomForest(hyperparameters.number_of_trees)
+        .train(
+            feature_inputs.features,
+            feature_inputs.class_property,
+            feature_inputs.input_properties,
+        )
+    )
     return rf_model
 
 
