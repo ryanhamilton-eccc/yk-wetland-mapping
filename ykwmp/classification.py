@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, List, Union
+from typing import Any, List, Union, Tuple
 import ee
 
 
@@ -15,6 +15,34 @@ class FeatureInputs:
     class_property: str
     input_properties: Union[List[str], ee.List]
 
+
+def partition_feature_collection(
+    features: ee.FeatureCollection,
+    partition_column: str,
+    train_value: Any,
+    validation_value: Any
+) -> Tuple[ee.FeatureCollection, ee.FeatureCollection]:
+    """
+    Partitions a FeatureCollection into training and validation sets based on a column.
+
+    Parameters:
+    - features: ee.FeatureCollection containing the data.
+    - partition_column: The column used to identify train and validation rows.
+    - train_value: The value in `partition_column` that indicates training rows.
+    - validation_value: The value in `partition_column` that indicates validation rows.
+
+    Returns:
+    - Tuple of ee.FeatureCollection (train, validation)
+    """
+    train_features = features.filter(ee.Filter.eq(partition_column, train_value))
+    validation_features = features.filter(ee.Filter.eq(partition_column, validation_value))
+    return train_features, validation_features
+
+
+def get_predictors(object: ee.List | ee.Image | ee.Feature | ee.FeatureCollection):
+    if isinstance(object, ee.Image):
+        return object.bandNames()
+    # TODO implement the rest
 
 def randomforest(
     feature_inputs: FeatureInputs,
