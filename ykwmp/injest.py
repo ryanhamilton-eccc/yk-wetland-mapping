@@ -4,7 +4,7 @@ import geopandas as gpd
 import ee
 
 
-def shapefile_to_feature_collection(shapefile_path: Union[str, Path]) -> ee.FeatureCollection:
+def shapefiles_to_feature_collection(shapefile_path: Union[str, Path]) -> ee.FeatureCollection:
     """
     Convert a point shapefile to an Earth Engine FeatureCollection.
     
