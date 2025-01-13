@@ -2,31 +2,65 @@ from pathlib import Path
 from typing import Union
 import geopandas as gpd
 import ee
+import pandas as pd
 
 
-def shapefiles_to_feature_collection(shapefile_path: Union[str, Path]) -> ee.FeatureCollection:
+# -- internal libs
+from eesys import monitor_task 
+
+
+def shapefile_to_feature_collection(shapefile_path: Union[str, Path]):
+    """ 
+    Generic function that converts a single shapefile to ee.FeatureCollection 
     """
-    Convert a point shapefile to an Earth Engine FeatureCollection.
-    
-    Parameters:
-    - shapefile_path: Path to the shapefile.
-    
-    Returns:
-    - ee.FeatureCollection: Converted Earth Engine FeatureCollection.
-    """
-    # Ensure the file exists
     shapefile_path = Path(shapefile_path)
     if not shapefile_path.exists():
-        raise FileNotFoundError(f"Shapefile not found at: {shapefile_path}")
-    
-    # Read the shapefile into a GeoDataFrame
+        raise FileNotFoundError(f"Shapfile not found {shapefile_path}")
     gdf = gpd.read_file(shapefile_path)
-    
-    # Ensure the CRS is EPSG:4326 (WGS84)
     if gdf.crs is None:
         gdf.set_crs(4326, inplace=True)
     elif gdf.crs != 4326:
         gdf.to_crs(4326, inplace=True)
+    return ee.FeatureCollection(gdf.__geo_interface__)
+
+
+def merge_shapefiles_to_feature_collection(
+    train_shapefile_path: Union[str, Path],
+    validation_shapefile_path: Union[str, Path],
+    id_column: str = "is_training"
+) -> ee.FeatureCollection:
+    """
+    Merges training and validation shapefiles into an Earth Engine FeatureCollection.
+    """
+    # cast paths to Path object
+    train_shapefile_path, validation_shapefile_path = map(Path, [train_shapefile_path, validation_shapefile_path])
+    
+    # Ensure the files exists
+    if not train_shapefile_path.exists():
+        raise FileNotFoundError(f"Training shapefile not found at: {train_shapefile_path}")
+    
+    if not validation_shapefile_path.exists():
+        raise FileNotFoundError(f"Training shapefile not found at: {validation_shapefile_path}")
+    
+    # Read the shapefile into a GeoDataFrame
+    gdf_train = gpd.read_file(train_shapefile_path)
+    gdf_test = gpd.read_file(validation_shapefile_path)
+ 
+    # Ensure the CRS is EPSG:4326 (WGS84)
+    for gdf in [gdf_train, gdf_test]:
+        if gdf.crs is None:
+            gdf.set_crs(4326, inplace=True)
+        elif gdf.crs != 4326:
+            gdf.to_crs(4326, inplace=True)
+
+    # add code or if column for if orig table is for train or test
+    id_column = 'is_training'
+    gdf_train[id_column] = 1
+    gdf_test[id_column] = 2
+    
+    # merge tables into a single dataframe
+    gdf = gpd.GeoDataFrame(pd.concat([gdf_train, gdf_test], ignore_index=True))
+
 
     # Convert the GeoDataFrame to a FeatureCollection
     feature_collection = ee.FeatureCollection(gdf.__geo_interface__)
@@ -34,45 +68,39 @@ def shapefiles_to_feature_collection(shapefile_path: Union[str, Path]) -> ee.Fea
     return feature_collection 
 
 
-def load_asset_from_path(path: Union[str, Path], asset_type: str = 'shapefile') -> ee.FeatureCollection:
-    """
-    Loads an asset from the given path, given the type of asset (e.g., shapefile).
-    
-    Parameters:
-    - path: Path to the asset file (e.g., shapefile path).
-    - asset_type: Type of the asset (e.g., shapefile).
-    
-    Returns:
-    - ee.FeatureCollection: The corresponding FeatureCollection.
-    """
-    # Check asset type and process accordingly
-    if asset_type == 'shapefile':
-        return shapefile_to_feature_collection(path)
-    else:
-        raise ValueError(f"Unsupported asset type: {asset_type}")
-
-
 def ingest_shapefile_to_asset(
     shapefile_path: Union[str, Path],
+    validation_shapefile_path: Union[str, Path],
     asset_id: str,
-    asset_type: str = 'shapefile'
+    asset_type: str = 'shapefile',
+    merge: bool = False
 ) -> None:
     """
-    Upload a shapefile (or other assets) to Earth Engine as an asset.
+    Upload a shapefile (or merged shapefiles) to Earth Engine as an asset.
     
     Parameters:
     - shapefile_path: Path to the asset file (shapefile).
+    - validation_shapefile_path: Path to the validation shapefile (optional, required for merging).
     - asset_id: The ID under which the asset will be saved in Earth Engine.
     - asset_type: Type of asset (default is 'shapefile').
+    - merge: Whether to merge training and validation shapefiles (default is False).
     
     Returns:
     - None
     """
-    if asset_type == 'shapefile':
-        # Convert shapefile to FeatureCollection
-        feature_collection = shapefile_to_feature_collection(shapefile_path)
-    else:
+    if asset_type != 'shapefile':
         raise ValueError(f"Unsupported asset type: {asset_type}")
+        
+    if merge:
+        if validation_shapefile_path is None:
+            raise ValueError("validation_shapefile_path is required for merging shapefiles.")
+        
+        feature_collection = merge_shapefiles_to_feature_collection(
+            train_shapefile_path=shapefile_path,
+            validation_shapefile_path=validation_shapefile_path
+        )
+    else:
+        feature_collection = shapefile_to_feature_collection(shapefile_path)
 
     try:
         # Upload the asset to Earth Engine
