@@ -38,25 +38,6 @@ def create_asset_folder(folder_id: str):
         print(f"Error creating folder: {e}")
 
 
-def export_if_not_exists(collection: ee.FeatureCollection, asset_id: str, description: str = "export_task"):
-    """
-    Export a FeatureCollection to an asset if it doesn't already exist.
-    
-    Parameters:
-    - collection: The FeatureCollection to export.
-    - asset_id: The target asset ID.
-    - description: Task description (default is "export_task").
-    """
-    if not asset_exists(asset_id):
-        task = ee.batch.Export.table.toAsset(
-            collection=collection,
-            description=description,
-            assetId=asset_id
-        )
-        task.start()
-        print(f"Export started for asset: {asset_id}")
-    else:
-        print(f"Asset {asset_id} already exists. Skipping export.")
         
 
 def list_assets_in_path(path: str) -> list:
@@ -86,7 +67,31 @@ def delete_asset(asset_id: str):
         print(f"Failed to delete asset {asset_id}: {e}")
 
 
-# -- Tasks
+# -- Asset tasks
+def export_if_not_exists(collection: ee.FeatureCollection, asset_id: str, description: str = "export_task"):
+    """
+    Export a FeatureCollection to an asset if it doesn't already exist.
+    
+    Parameters:
+    - collection: The FeatureCollection to export.
+    - asset_id: The target asset ID.
+    - description: Task description (default is "export_task").
+    """
+    if not asset_exists(asset_id):
+        task = ee.batch.Export.table.toAsset(
+            collection=collection,
+            description=description,
+            assetId=asset_id
+        )
+        task.start()
+        print(f"Export started for asset: {asset_id}")
+        # Monitor the task status
+        monitor_task(task)
+    else:
+        print(f"Asset {asset_id} already exists. Skipping export.")
+
+
+# -- Drive Tasks
 def export_classification_result(classified_image: ee.Image, task_name: str, region: ee.Geometry, scale: int = 30):
     export_task = ee.batch.Export.image.toDrive(
         image=classified_image,
