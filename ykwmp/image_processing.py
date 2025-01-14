@@ -85,5 +85,5 @@ def process_s2_images(
 
     if add_tasseled_cap:
         pass
-
-    return dataset.median().select("B[2-9]|B8A|B[0-1][0-2]")
+    # TODO add selectors for NDVI and Tasseled Cap
+    return dataset.median().select("B[2-9]|B8A|B[0-1][0-2]|NDVI")
