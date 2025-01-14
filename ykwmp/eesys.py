@@ -1,6 +1,7 @@
 from datetime import datetime
-from typing import List
+from typing import Any, Dict, List
 import ee
+import re
 import time
 
 import ee.batch
@@ -42,10 +43,8 @@ def create_asset_folder(folder_id: str):
         print(f"Error creating folder: {e}")
 
 
-        
-
-def list_assets_in_path(path: str) -> list:
-    """
+def list_assets_in_path(path: str, pattern: str = None) -> List[Dict[str, Any]]:
+    """ 
     List all assets under a specific path in Google Earth Engine.
     
     Parameters:
@@ -54,8 +53,13 @@ def list_assets_in_path(path: str) -> list:
     Returns:
     - list: A list of asset metadata.
     """
-    return ee.data.listAssets({"parent": path}).get('assets', [])
-
+    assets = ee.data.listAssets({"parent": path}).get('assets', [])
+    if pattern is None:
+        return assets
+    
+    regex = re.compile(pattern)
+    matching_assets = [asset for asset in assets if regex.search(asset.get("id", ""))]
+    return matching_assets
 
 def delete_asset(asset_id: str):
     """
@@ -127,17 +131,14 @@ def export_classification_result(classified_image: ee.Image, task_name: str, reg
     export_task.start()
     return export_task
 
-def export_error_matrix(error_matrix: ee.ConfusionMatrix, task_name: str):
-    # Convert the confusion matrix to a FeatureCollection or other format as needed
-    cm_fc = ee.FeatureCollection([ee.Feature(None, {
-        'confusion_matrix': error_matrix.getInfo()  # Or process accordingly
-    })])
+def export_error_matrix(table: ee.FeatureCollection, folder: str, filename: str):
     
     export_task = ee.batch.Export.table.toDrive(
-        collection=cm_fc,
-        description=task_name,
-        fileFormat='CSV',
-        folder='error_matrix_exports'
+        collection=table,
+        description='ErrorMatrixs',
+        fileFormat='GeoJSON',
+        folder=folder,
+        fileNamePrefix=filename
     )
     export_task.start()
     return export_task
