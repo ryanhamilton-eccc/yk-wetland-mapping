@@ -1,5 +1,9 @@
+from datetime import datetime
+from typing import List
 import ee
 import time
+
+import ee.batch
 
 
 def asset_exists(asset_id: str) -> bool:
@@ -68,6 +72,15 @@ def delete_asset(asset_id: str):
 
 
 # -- Asset tasks
+def create_table_asset_task(table: ee.FeatureCollection, asset_id: str, description: str = "") -> ee.batch.Task:
+    task = ee.batch.Export.table.toAsset(
+        collection=table,
+        description=description,
+        assetId=asset_id
+    )
+    return task
+
+
 def export_if_not_exists(collection: ee.FeatureCollection, asset_id: str, description: str = "export_task"):
     """
     Export a FeatureCollection to an asset if it doesn't already exist.
@@ -83,6 +96,17 @@ def export_if_not_exists(collection: ee.FeatureCollection, asset_id: str, descri
             description=description,
             assetId=asset_id
         )
+        task.start()
+        print(f"Export started for asset: {asset_id}")
+        # Monitor the task status
+        monitor_task(task)
+    else:
+        print(f"Asset {asset_id} already exists. Skipping export.")
+
+
+def export_model_if_not_exits(model: ee.Classifier, asset_id: str, description: str = "model_task"):
+    if not asset_exists(asset_id=asset_id):
+        task = ee.batch.Export.classifier.toAsset(classifier=model, assetId=asset_id, description=description)
         task.start()
         print(f"Export started for asset: {asset_id}")
         # Monitor the task status
@@ -167,3 +191,63 @@ def monitor_task(task: ee.batch.Task, check_interval: int = 10):
         print("Task completed successfully!")
     else:
         print(f"Task failed with error: {task.status().get('error_message', 'No error message available')}")
+
+
+def monitor_tasks(tasks: List[ee.batch.Task], interval: int = 10):
+    """
+    Monitors Earth Engine tasks and prints their statuses.
+
+    Parameters:
+    - tasks (list): List of ee.batch.Task objects to monitor.
+    - interval (int): Time interval (in seconds) between status checks.
+    """
+    print("Monitoring tasks...")
+    while True:
+        print(f"Status At: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        all_done = True
+        for task in tasks:
+            status = task.status()
+            state = status.get('state', 'UNKNOWN')
+            print(f"Task {task.id}: {state}")
+            
+            if state not in ('COMPLETED', 'FAILED', 'CANCELLED'):
+                all_done = False
+        print("#" * 30)
+        if all_done:
+            print("All tasks are complete.")
+            break
+        
+        time.sleep(interval)
+
+
+def monitor_tasks_inplace(tasks: List[ee.batch.Task], interval: int = 10):
+    """
+    Monitors Earth Engine tasks and updates the status in place on the console.
+
+    Parameters:
+    - tasks (list): List of ee.batch.Task objects to monitor.
+    - interval (int): Time interval (in seconds) between status checks.
+    """
+    print("Monitoring tasks...\n")
+    while True:
+        all_done = True
+        status_lines = []
+        
+        for task in tasks:
+            status = task.status()
+            state = status.get('state', 'UNKNOWN')
+            status_lines.append(f"Task {task.id}: {state}")
+            
+            if state not in ('COMPLETED', 'FAILED', 'CANCELLED'):
+                all_done = False
+        
+        # Clear the console lines and update with the current statuses
+        print("\033[F" * len(status_lines), end="")  # Move the cursor up
+        for line in status_lines:
+            print(line)
+        
+        if all_done:
+            print("\nAll tasks are complete.")
+            break
+        
+        time.sleep(interval)
