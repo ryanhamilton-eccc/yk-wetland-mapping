@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import Any, List, Union, Tuple
+import json
 import ee
+import pandas as pd
 
 
 # -- Random Forest
@@ -121,4 +123,51 @@ def compute_accuracy_metrics(
 
 
 def create_accuracy_feature_collection(metrics: AccuracyMetrics):
-    pass
+    table_compoents = [
+        ee.Feature(None, {"confusion_matrix": metrics.confusion_matrix.array()}),
+        ee.Feature(None, {"overall": metrics.accuracy}),
+        ee.Feature(None, {"producers": metrics.producers.toList().flatten()}),
+        ee.Feature(None, {"consumers": metrics.consumers.toList().flatten()}),
+        ee.Feature(None, {"order": metrics.order}),
+        ee.Feature(None, {"kappa": metrics.kappa})
+    ]
+    return ee.FeatureCollection(table_compoents)
+
+
+def build_metrics_table(datafile: str, labels: list[str] = None) -> pd.DataFrame:
+    with open(datafile, "r") as f:
+        data = json.load(f)
+
+    features = data["features"]
+    props = [_.get("properties") for _ in features]
+    data = {k: v for _ in props for k, v in _.items()}
+
+    # if labels are not provided, use the order of the classes
+    if not labels:
+        labels = data.get("order")
+
+    # this construct the base table for the cond
+    cfm = pd.DataFrame(
+        data=data.get("matrix"),
+        columns=labels,
+        index=labels,
+    )
+
+    # add producers to the base table
+    producers = data.get("producers")
+    cfm = cfm.reindex(columns=cfm.columns.tolist() + ["Producers"])
+    pro = list(map(lambda x: round(x * 100, 2), producers))
+    cfm["Producers"] = pro
+
+    # add consumers to the base table
+    consumers = data.get("consumers")
+    new_index = pd.Index(cfm.index.tolist() + ["Consumers"])
+    cfm = cfm.reindex(new_index).fillna(value=np.nan)
+    cfm.iloc[-1, 0:-1] = list(map(lambda x: round(x * 100), consumers))
+
+    # insert overall accuracy
+    overall = data.get("overall")
+    cfm = cfm.reindex(cfm.index.tolist() + ["Overall Accuracy"]).fillna(value=np.nan)
+    cfm.iloc[-1, 0] = round(overall * 100, 2)
+
+    return cfm
