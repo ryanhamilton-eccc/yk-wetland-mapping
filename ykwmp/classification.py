@@ -39,10 +39,16 @@ def partition_feature_collection(
     return train_features, validation_features
 
 
-def get_predictors(object: ee.List | ee.Image | ee.Feature | ee.FeatureCollection):
+def get_ee_predictors(object: ee.List | ee.Image | ee.Feature | ee.FeatureCollection):
+    props_to_remove = ['is_training', 'class_name', 'class_value', 'system:index']
     if isinstance(object, ee.Image):
         return object.bandNames()
-    # TODO implement the rest
+    if isinstance(object, ee.FeatureCollection):
+        object = object.first().propertyNames()
+    if isinstance(object, ee.Feature):
+        object = object.propertyNames()
+    return object.removeAll(props_to_remove)
+
 
 def randomforest(
     feature_inputs: FeatureInputs,
@@ -81,6 +87,7 @@ class AccuracyMetrics:
     kappa: ee.Number
     producers: ee.Array
     consumers: ee.Array
+    order: ee.List
 
 
 def compute_accuracy_metrics(
@@ -92,14 +99,15 @@ def compute_accuracy_metrics(
     """
     Computes the confusion matrix and accuracy metrics within Earth Engine.
     """
-    predictions = model.classify(validation)  # Classify the validation set
-    error_matrix = predictions.errorMatrix(actual, predicted)
+    order = validation.aggregate_array(actual).distinct()
+    predictions = validation.classify(model)  # Classify the validation set
+    error_matrix = predictions.errorMatrix(actual, predicted, order=order)
     
     # Extract additional metrics like overall accuracy, Kappa, etc.
     accuracy = error_matrix.accuracy()  # Overall accuracy
     kappa = error_matrix.kappa()  # Kappa coefficient
-    producers = None
-    consumers = None
+    producers = error_matrix.producersAccuracy()
+    consumers = error_matrix.consumersAccuracy()
     
     # Optionally, you can return the confusion matrix along with metrics
     return AccuracyMetrics(
@@ -107,7 +115,8 @@ def compute_accuracy_metrics(
         accuracy=accuracy,
         kappa=kappa,
         producers=producers,
-        consumers=consumers
+        consumers=consumers,
+        order=order
     )
 
 
