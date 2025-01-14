@@ -164,7 +164,7 @@ def batch_ingest_shapefiles(shapefile_dir: Union[str, Path], ee_workspace: str):
 
         # -- asset creation
         name = subdir.name
-        asset_id = f"{ee_workspace}/{name}"
+        asset_id = f"{ee_workspace}/{name}_raw"
         
         task  = create_table_asset_task(
             table=feature_collection,
