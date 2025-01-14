@@ -1,6 +1,10 @@
 from typing import Callable, List, Tuple
 import ee
 
+
+from ykwmp.eesys import asset_exists, create_table_asset_task, monitor_tasks
+
+
 # -- Stacking
 def stack(*images) -> ee.Image:
     return ee.Image.cat(*images)
@@ -38,3 +42,27 @@ def extract(image: ee.Image, collection: ee.FeatureCollection, properties: List[
         properties=properties
     )
 
+
+def batch_extract(stack: ee.Image, assets: List[str]):
+    tasks = []
+    for asset in assets:
+        # -- extract
+        if not asset_exists(asset):
+            continue
+        raw = ee.FeatureCollection(asset)
+        features = extract(stack, raw)
+
+        # -- task
+        asset_id = asset.replace("_raw", "_feature")
+        task  = create_table_asset_task(
+            features,
+            asset_id=asset_id,
+            description=f"Export_Features"
+        )
+
+        task.start()
+        print(f"Started export task for {asset_id}")
+        tasks.append(task)
+
+    monitor_tasks(tasks)
+    return 
