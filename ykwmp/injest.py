@@ -1,12 +1,13 @@
 from pathlib import Path
 from typing import Optional, Union
+import ee.batch
 import geopandas as gpd
 import ee
 import pandas as pd
 
 
 # -- internal libs
-from ykwmp.eesys import monitor_task 
+from ykwmp.eesys import monitor_task, monitor_tasks, create_table_asset_task
 
 
 def shapefile_to_feature_collection(shapefile_path: Union[str, Path]):
@@ -131,3 +132,49 @@ def ingest_shapefile_to_asset(
     
     except Exception as e:
         print(f"Error uploading asset: {e}")
+
+
+def batch_ingest_shapefiles(shapefile_dir: Union[str, Path], ee_workspace: str):
+    if isinstance(shapefile_dir, str):
+        shapefile_dir = Path(shapefile_dir)
+    
+    tasks = []
+    # -- list all the sub dirs
+    subidrs = [p for p in shapefile_dir.iterdir() if p.is_dir()]
+    for subdir in subidrs:
+        shapefiles = list(subdir.glob("*.shp"))
+        if len(shapefiles) !=2:
+            print(f"Skipping {subdir}: Expected 2 shapefiles, found {len(shapefiles)}.")
+            continue
+        # -- unpack
+        train, val = shapefiles
+        # -- validate
+        if train.name != "trainingPoints.shp" or val.name != "validationPoints.shp":
+            print(f"Skipping {subdir}: Shapefile names are invalid.")
+            continue
+        # -- create 
+        try:
+            feature_collection = merge_shapefiles_to_feature_collection(
+                train_shapefile_path=train,
+                validation_shapefile_path=val
+            )
+        except Exception as e:
+            print(f"Skipping {subdir}: Error merging shapefiles - {e}")
+            continue
+
+        # -- asset creation
+        name = subdir.name
+        asset_id = f"{ee_workspace}/{name}"
+        
+        task  = create_table_asset_task(
+            table=feature_collection,
+            asset_id=asset_id,
+            description=f"Ingest: {name}"
+        )
+        task.start()
+        print(f"Started ingestion task for {subdir.name}")
+        tasks.append(task)
+    
+    monitor_tasks(tasks)
+        
+        
