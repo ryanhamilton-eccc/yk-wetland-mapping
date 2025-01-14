@@ -2,8 +2,13 @@ from dataclasses import dataclass
 from typing import Any, List, Union, Tuple
 import json
 import ee
+import ee.batch
 import pandas as pd
 import numpy as np
+
+
+# -- internal 
+from ykwmp.eesys import export_error_matrix, monitor_tasks
 
 
 # -- Random Forest
@@ -172,3 +177,60 @@ def build_metrics_table(datafile: str, labels: list[str] = None) -> pd.DataFrame
     cfm.iloc[-1, 0] = round(overall * 100, 2)
 
     return cfm
+
+
+# -- batch modeling and assessment
+def batch_model_and_assesment(features: List[str], folder_name: str):
+    tasks = []
+    for feature in features:
+        inputs = ee.FeatureCollection(feature)
+        train, test = partition_feature_collection(
+            features=inputs,
+            partition_column="is_training",
+            train_value=1,
+            validation_value=2
+        )
+
+        predictors = get_ee_predictors(train)
+
+        model_inputs = FeatureInputs(
+            features=train,
+            class_property='class_value',
+            input_properties=predictors
+        )
+
+        model = randomforest(
+            feature_inputs=model_inputs, 
+            hyperparameters=RandomForestHyperparameters()
+        )
+
+        error_matrix = compute_accuracy_metrics(
+            model=model,
+            validation=test,
+            actual="class_value"
+        )
+
+        serialized_matrix = create_accuracy_feature_collection(
+            metrics=error_matrix
+        )
+
+        # -- model asset task
+        model_asset_id = feature.replace("_feature", "_model")
+        task = ee.batch.Export.classifier.toAsset(
+            classifier=model,
+            description="ExportModel",
+            assetId=model_asset_id
+        )
+        task.start()
+        print(f"Started export task for {model_asset_id}")
+        tasks.append(task)
+
+        # -- export to drive
+        name = feature.split("/")[-1].replace("_feature", "_metrics")
+        export_error_matrix(
+            table=serialized_matrix,
+            folder=folder_name,
+            filename=name
+        )
+    monitor_tasks(tasks)
+    return
