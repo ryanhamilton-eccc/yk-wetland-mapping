@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import ee
+import ee.data
 
 # -- internal imports
 from ykwmp.eesys import create_asset_folder, asset_exists, list_assets_in_path
@@ -72,6 +73,16 @@ def batch_model_and_assessment_step(workspace):
 
 
 def batch_predict(workspace):
+    if not ee.data._credentials:
+        ee.Initialize(project="yk-wetland-mapping")
+    region = list_assets_in_path(workspace, pattern="_region$")
+    models = list_assets_in_path(workspace, pattern="_model$")
+
+    region = region[0].get('id')
+    models = list(map(lambda x: x.get('id'), models))
+    # for each model predict on image 
+    # image is a constant
+
     pass
 
 
