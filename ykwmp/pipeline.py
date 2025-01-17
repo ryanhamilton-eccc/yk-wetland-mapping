@@ -1,8 +1,9 @@
 from pathlib import Path
 import logging
 import ee
+import ee.batch
 import ee.data
-import ee.data
+import re
 
 # -- internal imports
 from ykwmp.eesys import (
@@ -23,6 +24,7 @@ from ykwmp.classification import (
     RandomForestHyperparameters,
     randomforest,
     create_accuracy_feature_collection,
+    predict
 )
 from ykwmp.image_utils import extract
 
@@ -173,8 +175,14 @@ def batch_predict(workspace, model_workspace: str = None):
         models = list_assets_in_path(model_workspace, pattern="_model$")
 
     region = region[0].get("id")
+    region_number = None
     models = list(map(lambda x: x.get("id"), models))
 
+    # Extract region number (1 to 3 digits)
+    region_number_match = re.search(r"\d{1,3}", region)
+    if region_number_match:
+        region_number = region_number_match.group()
+    
     # consturct region
     region = ee.FeatureCollection(region).geometry()
 
@@ -187,10 +195,31 @@ def batch_predict(workspace, model_workspace: str = None):
     # create the stack
     stack = ee.Image.cat(s1, s2)
     
+    # -- iterate over all the model asset
+    for model in models:
+        run_idx = None
+        match = re.search(r"r\d{2}", model)
+        if match:
+            run_idx = match.group()
+        loaded_model = ee.Classifier.load(model)
+        predicted = predict(stack, model=loaded_model)
 
+        # -- Export the predicted product to drive
+        gdrive_foldername = f"{region_number}_{run_idx}"
 
-    pass
-
+        task = ee.batch.Export.image.toDrive(
+            image=predicted,
+            fileNamePrefix="classification-",
+            folder=gdrive_foldername,
+            region=region,
+            scale=10,
+            maxPixels=1e13,
+            skipEmptyTiles=True,
+            fileDimensions=2048
+        )
+        task.start()
+        logger.info(f"Exporting Classification: {gdrive_foldername}")
+    logger.info("All Image Exports Started...")
 
 def reset_and_init_api(projectid: str):
     ee.Reset()
@@ -228,26 +257,23 @@ def run_pipeline(
     reset_and_init_api(project_id)
 
     logger.info("Running batch prediction...")
-
+    batch_predict(workspace=workspace)
     logger.info("Pipeline completed.")
 
 
-def run_pipeline_without_feature_extration(
+def run_pipeline_with_batch_prediction(
     project_id: str, 
-    workspace: str, 
+    workspace: str,
+    region_path: str, 
     model_workspace: str
 ) -> None:
-    pass
+    workspace = f"projects/{project_id}/assets/{workspace}"
+    logger.info("Setting up workspace...")
+    setup_workspace_step(workspace, region_path)
 
-if __name__ == '__main__':
-    import ee
+    # -- create the stack we want to classify
+    logger.info("Running batch prediction...")
+    batch_predict(workspace=workspace, model_workspace=model_workspace)
+    logger.info("Pipeline completed.")
 
-    ee.Initialize(project="yk-wetland-mapping")
 
-    run_pipeline(
-        project_id='yk-wetland-mapping',
-        workspace="test-workspace",
-        region_path=r"D:\Yukon-Wetland-Mapping-Data\YK_Seperated_AOI\165.shp",
-        trainval_root=r"D:\Yukon-Wetland-Mapping-Data\YK_GeeReady\165",
-        gdrive_foldername="165"
-    )
