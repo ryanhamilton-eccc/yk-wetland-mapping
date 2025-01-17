@@ -169,3 +169,6 @@ data/rasters/*
 scratch/*
 
 *.qgz
+
+.vscode/
+Examples/
