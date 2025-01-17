@@ -1,5 +1,6 @@
-from pathlib import Path
+from ykwmp.pipeline import run_pipeline, run_pipeline_with_batch_prediction
 
-
-S1_DATASET = r'C:\Users\rhamilton\code\yk-wetland-mapping\data\geojson\s1_asc_2019.geojson'
-GRID_PATH = r"C:\Users\rhamilton\code\yk-wetland-mapping\data\shapefiles\grid.shp"
+__all__ = [
+    'run_pipeline',
+    'run_pipeline_with_batch_prediction'
+]
